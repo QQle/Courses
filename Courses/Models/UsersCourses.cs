@@ -6,8 +6,8 @@ namespace Courses.Models
     public class UsersCourses
     {
         [Key]
-        public int CourseID { get; set; }
-        public User User { get; set; }
+        public int UserCourseID { get; set; }
+        public string UserId { get; set; }
         public Cours Cours { get; set; }
         
     }
