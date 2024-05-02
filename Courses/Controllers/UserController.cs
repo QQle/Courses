@@ -1,6 +1,7 @@
 ﻿using Courses.Contexts;
 using Courses.Models;
 using Courses.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,11 +13,13 @@ namespace Courses.Controllers
     {
         private readonly IAuthentication _authentication;
         private readonly CourseContext _courseContext;
+        private readonly UserManager<User> _userManager;
 
-        public UserController(IAuthentication authentication, CourseContext courseContext)
+        public UserController(IAuthentication authentication, CourseContext courseContext, UserManager<User> userManager)
         {
             _authentication = authentication;
-            _courseContext = courseContext; 
+            _courseContext = courseContext;
+            _userManager = userManager;
         }
         [HttpPost("Registration")]
         public async Task<IActionResult> RegisterUser([FromBody] Login user)
@@ -53,6 +56,28 @@ namespace Courses.Controllers
                 return Ok(resultObject);
             }
             return Unauthorized();
+        }
+        [HttpPost("Logout")]
+        public async Task<IActionResult> Logout(string userId)
+        {
+
+            var currentUser = await _userManager.FindByIdAsync(userId);
+            if (currentUser == null)
+            {
+                return BadRequest("Пользователь не найден");
+            }
+
+            currentUser.RefreshToken = null;
+            currentUser.ExpiresDate = null;
+
+
+            var updateResult = await _userManager.UpdateAsync(currentUser);
+            if (!updateResult.Succeeded)
+            {
+                return StatusCode(500, "Не удалось обновить пользователя");
+            }
+
+            return Ok("Вы успешно вышли из системы");
         }
 
         [HttpPost("RefreshToken")]

@@ -1,8 +1,9 @@
 ﻿using Courses.Contexts;
 using Courses.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace Courses.Controllers
 {
@@ -18,18 +19,27 @@ namespace Courses.Controllers
         }
 
         [HttpGet("GetAllCourses")]
-        public async Task<IActionResult> GetCourse() 
+        public async Task<IActionResult> GetCourse()
         {
-           var result = await _context.CoursesItem
+            var courses = await _context.CoursesItem
+                .Include(c => c.Links) 
                 .ToListAsync();
 
-            if (result.Count == 0)
+            if (courses.Count == 0)
             {
-                BadRequest("Доступных курсов нет");
+                return BadRequest("Доступных курсов нет");
             }
+
+          
+            var result = courses.Select(c => new
+            {
+                c.CourseID,
+                c.Title,
+                c.Description,
+                Links = c.Links.Select(l => l.Url).ToList()
+            });
+
             return Ok(result);
-           
-        
         }
 
         [HttpPost("FindTaskByID")]
@@ -37,7 +47,7 @@ namespace Courses.Controllers
         public async Task<IActionResult> FindTaskByID([FromBody] int id)
         {
             var result = await _context.Tasks
-                .Where(x=>x.TaskId == id)
+                .Where(x => x.TaskId == id)
                 .ToListAsync();
 
             if (result.Count == 0)
@@ -84,23 +94,23 @@ namespace Courses.Controllers
                 Cours = course
             };
 
-            
+
             _context.UserCourses.Add(newUserCourse);
 
-          
+
             await _context.SaveChangesAsync();
 
             return Ok(newUserCourse);
         }
 
-       [HttpPost("GetTasksByCourseId")]
-       public async Task<IActionResult> GetTask([FromBody]int courseId)
+        [HttpPost("GetTasksByCourseId")]
+        public async Task<IActionResult> GetTask([FromBody] int courseId)
         {
             var courseWithTasks = _context.CoursesItem
              .Where(c => c.CourseID == courseId)
              .Select(c => new Cours
              {
-                
+
                  Tasks = _context.Tasks
                      .Where(t => t.CoursId.CourseID == courseId)
                      .Select(t => new Models.Task
@@ -108,22 +118,22 @@ namespace Courses.Controllers
                          TaskId = t.TaskId,
                          Description = t.Description,
                          Answers = t.Answers,
-                        
-                        
+
+
                      })
                      .ToList()
              })
              .FirstOrDefault();
 
             return Ok(courseWithTasks);
-       }
-        
+        }
+
         public record SetResult(int Score, DateTime SolveDate, int UserCourseId);
 
         [HttpPost("SetScore")]
         public async Task<IActionResult> SetScore([FromBody] SetResult setResult)
         {
-            
+
             var userCourse = await _context.UserCourses.FindAsync(setResult.UserCourseId);
 
 
@@ -137,7 +147,7 @@ namespace Courses.Controllers
                 Score = setResult.Score,
                 TestDate = setResult.SolveDate,
                 UserCourseId = setResult.UserCourseId,
-          
+
             };
 
 
@@ -153,18 +163,18 @@ namespace Courses.Controllers
         public async Task<IActionResult> GetProgress([FromBody] string userId)
         {
             var userCourseId = await _context.UserCourses
-                .Where(x=>x.UserId==userId)
-                .Select(c=>c.UserCourseID)
+                .Where(x => x.UserId == userId)
+                .Select(c => c.UserCourseID)
                 .FirstOrDefaultAsync();
 
-            if (userCourseId == 0 )
+            if (userCourseId == 0)
             {
                 return BadRequest("Данный пользователь не проходил тесты");
             }
 
             var result = await _context.CourseResults
-                .Where(x=>x.UserCourseId==userCourseId)
-                .ToListAsync(); 
+                .Where(x => x.UserCourseId == userCourseId)
+                .ToListAsync();
 
             return Ok(result);
         }
